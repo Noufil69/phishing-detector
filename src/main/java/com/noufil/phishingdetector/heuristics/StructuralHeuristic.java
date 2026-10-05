@@ -78,6 +78,13 @@ public class StructuralHeuristic implements HeuristicCheck {
         boolean schemeAssumed = !trimmed.contains("://");
         String normalized = schemeAssumed ? "http://" + trimmed : trimmed;
 
+        // Hosts with non-English letters become their ASCII "xn--" form, as in a browser.
+        try {
+            normalized = HostExtractor.withAsciiHost(normalized);
+        } catch (IllegalArgumentException e) {
+            return unparseable();
+        }
+
         URI uri;
         try {
             uri = new URI(normalized);

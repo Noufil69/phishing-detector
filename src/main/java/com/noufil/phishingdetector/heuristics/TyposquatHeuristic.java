@@ -67,12 +67,23 @@ public class TyposquatHeuristic implements HeuristicCheck {
         int registrableCount = HostExtractor.registrableLabelCount(labels);
         int registrableIndex = Math.max(0, labels.length - registrableCount);
 
-        String name = labels[registrableIndex];
-        List<String> subdomainLabels = Arrays.asList(labels).subList(0, registrableIndex);
+        String rawName = labels[registrableIndex];
 
         // The domain really is the brand's own name (TLD is not verified here).
+        if (BRAND_SET.contains(rawName)) {
+            return RiskFactor.of(NAME, 0, "Domain name is the known brand '" + rawName + "'");
+        }
+
+        // "xn--" labels are decoded and reduced to the plain letters they imitate,
+        // so a paypal written with a Cyrillic letter a is compared as "paypal".
+        String name = Confusables.comparable(rawName);
+        List<String> subdomainLabels = Arrays.stream(labels, 0, registrableIndex)
+                .map(Confusables::comparable)
+                .toList();
+
         if (BRAND_SET.contains(name)) {
-            return RiskFactor.of(NAME, 0, "Domain name is the known brand '" + name + "'");
+            return RiskFactor.of(NAME, POINTS_LOOKALIKE_CHARS,
+                    "Domain name uses look-alike letters (accents or another alphabet) to imitate '" + name + "'");
         }
 
         int bestScore = 0;
