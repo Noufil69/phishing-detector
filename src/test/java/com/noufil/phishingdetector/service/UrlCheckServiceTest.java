@@ -1,11 +1,5 @@
 package com.noufil.phishingdetector.service;
 
-import com.noufil.phishingdetector.heuristics.HeuristicCheck;
-import com.noufil.phishingdetector.model.RiskFactor;
-import com.noufil.phishingdetector.model.RiskLevel;
-import com.noufil.phishingdetector.model.RiskScore;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,6 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+
+import com.noufil.phishingdetector.heuristics.HeuristicCheck;
+import com.noufil.phishingdetector.model.RiskFactor;
+import com.noufil.phishingdetector.model.RiskLevel;
+import com.noufil.phishingdetector.model.RiskScore;
 
 class UrlCheckServiceTest {
 
@@ -52,7 +52,7 @@ class UrlCheckServiceTest {
 
     @Test
     void noChecksRegistered_returnsLowRisk() {
-        UrlCheckService service = new UrlCheckService(List.of(), new ScoreAggregator());
+        UrlCheckService service = new UrlCheckService(List.of(), new ScoreAggregator(ScoringConfig.defaults()));
 
         RiskScore result = service.analyze("https://example.com");
 
@@ -65,33 +65,35 @@ class UrlCheckServiceTest {
     @Test
     void runsEveryCheckAndAggregates() {
         UrlCheckService service = new UrlCheckService(
-                List.of(new FixedCheck("A", 20), new FixedCheck("B", 25)),
-                new ScoreAggregator());
+                List.of(new FixedCheck("Domain Age", 70), new FixedCheck("Typosquat", 50)),
+                new ScoreAggregator(ScoringConfig.defaults()));
 
         RiskScore result = service.analyze("https://example.com");
 
-        assertEquals(45, result.totalScore());
-        assertEquals(RiskLevel.MEDIUM, result.level());
+        assertEquals(68, result.totalScore());
+        assertEquals(RiskLevel.HIGH, result.level());
         assertEquals(2, result.factors().size());
     }
 
     @Test
     void failingCheckIsMarkedUnavailable_andOthersStillRun() {
         UrlCheckService service = new UrlCheckService(
-                List.of(new ExplodingCheck(), new FixedCheck("B", 40)),
-                new ScoreAggregator());
+                List.of(new ExplodingCheck(), new FixedCheck("Domain Age", 70)),
+                new ScoreAggregator(ScoringConfig.defaults()));
 
         RiskScore result = service.analyze("https://example.com");
 
         assertEquals(2, result.factors().size());
         assertFalse(result.factors().get(0).available());
         assertTrue(result.factors().get(1).available());
-        assertEquals(40, result.totalScore());
+        assertEquals(42, result.totalScore());
+        assertEquals(1, result.checksRun());
+        assertEquals(2, result.checksTotal());
     }
 
     @Test
     void blankUrlIsRejected() {
-        UrlCheckService service = new UrlCheckService(List.of(), new ScoreAggregator());
+        UrlCheckService service = new UrlCheckService(List.of(), new ScoreAggregator(ScoringConfig.defaults()));
 
         assertThrows(IllegalArgumentException.class, () -> service.analyze(" "));
         assertThrows(IllegalArgumentException.class, () -> service.analyze(null));

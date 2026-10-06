@@ -14,4 +14,14 @@ public record RiskScore(int totalScore, RiskLevel level, List<RiskFactor> factor
         }
         factors = List.copyOf(factors);
     }
+
+    /** How many checks actually produced a result. */
+    public int checksRun() {
+        return (int) factors.stream().filter(RiskFactor::available).count();
+    }
+
+    /** How many checks were attempted, including the ones that could not run. */
+    public int checksTotal() {
+        return factors.size();
+    }
 }
