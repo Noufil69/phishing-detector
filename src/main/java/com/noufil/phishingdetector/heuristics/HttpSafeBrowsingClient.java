@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +36,8 @@ import org.springframework.stereotype.Component;
 public class HttpSafeBrowsingClient implements SafeBrowsingClient {
 
     static final int MAX_BODY_BYTES = 1_000_000;
+
+    private static final Logger log = LoggerFactory.getLogger(HttpSafeBrowsingClient.class);
 
     private static final Pattern PLAIN_KEY = Pattern.compile("^[A-Za-z0-9_-]{10,200}$");
 
@@ -77,10 +81,15 @@ public class HttpSafeBrowsingClient implements SafeBrowsingClient {
             throw new IOException("Interrupted while contacting Safe Browsing");
         } catch (IOException e) {
             // The original message could contain the request address, which holds the key.
+            // Log only the exception type, which is enough to tell a timeout from a refusal.
+            log.warn("Safe Browsing request failed: {}", e.getClass().getSimpleName());
             throw new IOException("Could not reach Safe Browsing");
         }
 
         if (response.statusCode() != 200) {
+            // The status code alone is safe to log and tells the developer what is wrong
+            // (400 or 403 usually means the key is wrong or the API is not enabled for it).
+            log.warn("Safe Browsing answered with HTTP {}", response.statusCode());
             closeQuietly(response.body());
             throw new IOException("Safe Browsing refused the request");
         }
